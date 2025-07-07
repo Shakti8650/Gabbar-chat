@@ -11,7 +11,7 @@ import asyncio
 import aiohttp
 from aiohttp import web
 
-KEEPALIVE_URL = "https://<your-render-url>.onrender.com/"   
+KEEPALIVE_URL = "https://gabbar-chat.onrender.com"   
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
