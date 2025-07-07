@@ -7,11 +7,6 @@ from datetime import datetime
 from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup, ReplyKeyboardRemove
 from telegram.ext import (Application, ApplicationBuilder, CommandHandler, MessageHandler, filters, ContextTypes,
                           ConversationHandler, CallbackQueryHandler)
-import asyncio
-import aiohttp
-from aiohttp import web
-
-KEEPALIVE_URL = "https://gabbar-chat.onrender.com"   
 
 logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -111,31 +106,6 @@ async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     )
     await find_partner(user_id, context)
     return ConversationHandler.END
-
-# ───────────────  Keep-Alive Functions  ───────────────
-
-async def start_web_server():
-    """Tiny aiohttp server returning 200 OK on '/' so Render & UptimeRobot can ping."""
-    async def handle_root(request):
-        return web.Response(text="✅ Bot is alive", status=200)
-
-    app = web.Application()
-    app.add_routes([web.get('/', handle_root)])
-    runner = web.AppRunner(app)
-    await runner.setup()
-    site = web.TCPSite(runner, host="0.0.0.0", port=8080)
-    await site.start()
-
-async def keep_alive():
-    """Ping the site every 5 minutes so Render stays awake."""
-    async with aiohttp.ClientSession() as session:
-        while True:
-            try:
-                await session.get(KEEPALIVE_URL, timeout=10)
-                print("🔄 Keep-alive ping sent")
-            except Exception as e:
-                print("⚠️ Keep-alive ping failed:", e)
-            await asyncio.sleep(300)   # 5 minutes
 
 # Gender handler
 async def set_gender(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -989,48 +959,39 @@ settings_conv = ConversationHandler(
 )
 
 # ───────────────  MAIN (complete)  ───────────────
-from telegram.ext import ApplicationBuilder, filters     # ऊपर import था तो दुबारा लिखना वैकल्पिक है
+if __name__ == "__main__":                       # ✅  सही चेक
+    from telegram.ext import ApplicationBuilder, filters
 
-app = (
-    ApplicationBuilder()
-    .token("8022036150:AAGrQjWCdWPSb-ZpSsAqYh9-NEorkWdnQUM")  # ← bot-token
-    .build()
-)
+    app = (
+        ApplicationBuilder()
+        .token("8022036150:AAGrQjWCdWPSb-ZpSsAqYh9-NEorkWdnQUM")  # ← bot-token
+        .build()
+    )
 
-# ----- conversations -----
-app.add_handler(conv)
-app.add_handler(settings_conv)
-app.add_handler(CallbackQueryHandler(cancel_settings, pattern="^cancel_settings$"))
+    # ----- conversations -----
+    app.add_handler(conv)
+    app.add_handler(settings_conv)
+    app.add_handler(CallbackQueryHandler(cancel_settings, pattern="^cancel_settings$"))
 
-# ----- core commands -----
-app.add_handler(CommandHandler("next",     next_command))
-app.add_handler(CommandHandler("stop",     stop_command))
-app.add_handler(CommandHandler("me",       me))
-app.add_handler(CommandHandler("settings", settings))
+    # ----- core commands -----
+    app.add_handler(CommandHandler("next",     next_command))
+    app.add_handler(CommandHandler("stop",     stop_command))
+    app.add_handler(CommandHandler("me",       me))
+    app.add_handler(CommandHandler("settings", settings))
 
-# ----- report buttons -----
-app.add_handler(CallbackQueryHandler(open_report_menu,     pattern="^report:open$"))
-app.add_handler(CallbackQueryHandler(handle_report_reason, pattern="^rep_reason:"))
-app.add_handler(CallbackQueryHandler(handle_report_reason, pattern="^rep_cancel$"))
+    # ----- report buttons -----
+    app.add_handler(CallbackQueryHandler(open_report_menu,     pattern="^report:open$"))
+    app.add_handler(CallbackQueryHandler(handle_report_reason, pattern="^rep_reason:"))
+    app.add_handler(CallbackQueryHandler(handle_report_reason, pattern="^rep_cancel$"))
 
-# ----- admin -----
-app.add_handler(CommandHandler("admin", admin, filters=filters.User(admins)))
-app.add_handler(CallbackQueryHandler(admin_callback,
-                                     pattern="^(admin:|rep_filter:|rep_info:|blk_).*"))
+    # ----- admin -----
+    app.add_handler(CommandHandler("admin", admin, filters=filters.User(admins)))
+    app.add_handler(CallbackQueryHandler(admin_callback,
+                                         pattern="^(admin:|rep_filter:|rep_info:|blk_).*"))
 
-# ----- fallback / relay -----
-app.add_handler(MessageHandler(filters.ALL, message_handler))
+    # ----- fallback / relay -----
+    app.add_handler(MessageHandler(filters.ALL, message_handler))
 
-
-# ───────────  Keep-alive + bot runner  ───────────
-async def run_all():
-    await start_web_server()          # 1) Mini web-server (Render health-check)
-    asyncio.create_task(keep_alive()) # 2) Background ping every 5 min
-    app.run_polling()                 # 3) Start Telegram bot
-
-# ⬇️ सिर्फ़ एक ही बार main-guard
-if __name__ == "__main__":
-    asyncio.run(run_all())
-
-
+    print("✅ Gabbar Chat is running…")
+    app.run_polling()
 
