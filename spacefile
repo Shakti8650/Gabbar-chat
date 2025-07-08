@@ -1,0 +1,5 @@
+  [build]
+  entrypoint = "bot.py"
+
+[run]
+  command = "python bot.py"
