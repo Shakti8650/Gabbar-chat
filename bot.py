@@ -394,15 +394,12 @@ async def me(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     """/settings command – shows Age / Language menu only if profile complete."""
     user_id = update.effective_user.id
-    
-    # 🔒 Block-guard
+
+    # 🔒 Block-guard 
     is_blk, msg = is_currently_blocked(user_id)
     if is_blk:
         await update.message.reply_text(msg)
         return
-    await update.callback_query.answer()
-    await update.callback_query.message.reply_text(msg)
-    return
 
     # make sure user-dict exists
     if user_id not in users:
@@ -450,18 +447,17 @@ async def settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def setting_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
-    
-    # 🔒 Block-guard
+
+    # 🔒 Block-guard (✅ only blocks users if needed)
     is_blk, msg = is_currently_blocked(user_id)
     if is_blk:
-        await update.message.reply_text(msg)
+        await query.answer()
+        await query.message.reply_text(msg)
         return
-    await update.callback_query.answer()
-    await update.callback_query.message.reply_text(msg)
-    return
-    await query.answer()
 
-    # choose age
+    await query.answer()  # ✅ spinner close for normal users
+
+    # 👇 Age selection
     if query.data == "set_age":
         age_buttons = [
             [InlineKeyboardButton(str(a), callback_data=f"age:{a}") for a in range(i, i + 5)]
@@ -471,7 +467,7 @@ async def setting_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await query.edit_message_text("🎂 Select your age:", reply_markup=InlineKeyboardMarkup(age_buttons))
         return AGE
 
-    # choose language
+    # 👇 Language selection
     if query.data == "change_language":
         lang_buttons = [[InlineKeyboardButton(txt, callback_data=f"set_lang:{code}")]
                         for code, txt in LANGUAGES.items()]
@@ -484,18 +480,19 @@ async def setting_callback(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def set_age(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
-    
-    # 🔒 Block-guard
+
+    # 🔒 Block-guard 
     is_blk, msg = is_currently_blocked(user_id)
     if is_blk:
-        await update.message.reply_text(msg)
+        await query.message.reply_text(msg)
         return
-    await update.callback_query.answer()
-    await update.callback_query.message.reply_text(msg)
-    return
+
+    await query.answer()
+
     age = int(query.data.split(":")[1])
     users[user_id]["age"] = age
     await query.edit_message_text(f"🎂 Age updated to: {age}")
+
 
     # context-sensitive reply
     if user_id in active_chats:
@@ -511,15 +508,13 @@ async def set_age(update: Update, context: ContextTypes.DEFAULT_TYPE):
 async def cancel_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
     user_id = query.from_user.id
-    
-    # 🔒 Block-guard
+
+    # 🔒 Block-guard (✅ corrected)
     is_blk, msg = is_currently_blocked(user_id)
     if is_blk:
-        await update.message.reply_text(msg)
+        await query.message.reply_text(msg)
         return
-    await update.callback_query.answer()
-    await update.callback_query.message.reply_text(msg)
-    return
+
     await query.answer()
 
     if user_id in active_chats:
@@ -529,6 +524,7 @@ async def cancel_settings(update: Update, context: ContextTypes.DEFAULT_TYPE):
 
     await query.edit_message_text(f"❌ Cancelled.\n{follow}")
     return ConversationHandler.END
+
 
 # ─────────────── Message Handler ──────────────
 async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
@@ -994,4 +990,8 @@ if __name__ == "__main__":                       # ✅  सही चेक
 
     print("✅ Gabbar Chat is running…")
     app.run_polling()
+
+
+
+
 
