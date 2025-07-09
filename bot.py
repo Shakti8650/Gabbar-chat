@@ -960,9 +960,16 @@ if __name__ == "__main__":                       # ✅  सही चेक
 
     app = (
         ApplicationBuilder()
-        .token("8022036150:AAGrQjWCdWPSb-ZpSsAqYh9-NEorkWdnQUM")  # ← bot-token
-        .build()
-    )
+        import os
+
+TOKEN = os.getenv("BOT_TOKEN")
+
+app = (
+    ApplicationBuilder()
+    .token(TOKEN)
+    .build()
+)
+
 
     # ----- conversations -----
     app.add_handler(conv)
