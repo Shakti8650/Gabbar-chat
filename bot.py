@@ -542,22 +542,25 @@ async def message_handler(update: Update, context: ContextTypes.DEFAULT_TYPE):
     u = users[user_id]
 
     # 🚫 Profile Incomplete
-    if "gender" not in u:
-        buttons = [[
-            InlineKeyboardButton("🚹 Male", callback_data="set_gender:Male"),
-            InlineKeyboardButton("🚺 Female", callback_data="set_gender:Female"),
-            InlineKeyboardButton("⚧ Other", callback_data="set_gender:Other"),
-        ]]
-        await update.message.reply_text("🚫 Please complete your profile first.\n👇 Select your gender:",
-                                        reply_markup=InlineKeyboardMarkup(buttons))
-        return
-
-    if "language" not in u:
-        buttons = [[InlineKeyboardButton(txt, callback_data=f"set_lang:{code}")]
-                   for code, txt in LANGUAGES.items()]
-        await update.message.reply_text("🚫 Please complete your profile first.\n👇 Select your language:",
-                                        reply_markup=InlineKeyboardMarkup(buttons))
-        return
+    if not is_profile_complete(user_id):
+            await update.message.reply_text("🚫 Please complete your profile first.")
+            if "gender" not in u:
+                buttons = [[
+                    InlineKeyboardButton("🚹 Male",   callback_data="set_gender:Male"),
+                    InlineKeyboardButton("🚺 Female", callback_data="set_gender:Female"),
+                    InlineKeyboardButton("⚧ Other",  callback_data="set_gender:Other"),
+                ]]
+                await update.message.reply_text("👇 Please select your gender. ⚠️ Once set, cannot be changed.",
+                                                reply_markup=InlineKeyboardMarkup(buttons))
+                return
+            if "language" not in u:
+                buttons = [[InlineKeyboardButton(txt, callback_data=f'set_lang:{code}')]
+                           for code, txt in LANGUAGES.items()]
+                await update.message.reply_text(
+                    "👇 Please select your language:\n🔸 You can change this later using /settings",
+                    reply_markup=InlineKeyboardMarkup(buttons))
+                return
+            return
 
     # ✅ If in chat
     if user_id in active_chats:
@@ -954,68 +957,54 @@ settings_conv = ConversationHandler(
     fallbacks=[CallbackQueryHandler(cancel_settings, pattern="^cancel_settings$")],
 )
 
-# ───────────────  MAIN (complete)  ───────────────
-if __name__ == "__main__":                       # ✅  सही चेक
+if __name__ == "__main__":
+    import os
     from telegram.ext import ApplicationBuilder, filters
+    from flask import Flask
+    from threading import Thread
 
+    TOKEN = os.getenv("BOT_TOKEN")
+
+    # --- Telegram Bot Setup ---
     app = (
         ApplicationBuilder()
-        import os
+        .token(TOKEN)
+        .build()
+    )
 
-TOKEN = os.getenv("BOT_TOKEN")
-
-app = (
-    ApplicationBuilder()
-    .token(TOKEN)
-    .build()
-)
-
-
-    # ----- conversations -----
+    # Handlers setup
     app.add_handler(conv)
     app.add_handler(settings_conv)
     app.add_handler(CallbackQueryHandler(cancel_settings, pattern="^cancel_settings$"))
 
-    # ----- core commands -----
     app.add_handler(CommandHandler("next",     next_command))
     app.add_handler(CommandHandler("stop",     stop_command))
     app.add_handler(CommandHandler("me",       me))
     app.add_handler(CommandHandler("settings", settings))
 
-    # ----- report buttons -----
     app.add_handler(CallbackQueryHandler(open_report_menu,     pattern="^report:open$"))
     app.add_handler(CallbackQueryHandler(handle_report_reason, pattern="^rep_reason:"))
     app.add_handler(CallbackQueryHandler(handle_report_reason, pattern="^rep_cancel$"))
 
-    # ----- admin -----
     app.add_handler(CommandHandler("admin", admin, filters=filters.User(admins)))
     app.add_handler(CallbackQueryHandler(admin_callback,
                                          pattern="^(admin:|rep_filter:|rep_info:|blk_).*"))
 
-    # ----- fallback / relay -----
     app.add_handler(MessageHandler(filters.ALL, message_handler))
 
-    print("✅ Gabbar Chat is running…")
+    print("✅ Gabbar Chat is starting...")
+
+    # --- Flask Server in Background ---
+    flask_app = Flask(__name__)
+
+    @flask_app.route('/')
+    def home():
+        return "✅ Bot is alive!"
+
+    def run_flask():
+        flask_app.run(host='0.0.0.0', port=8080)
+
+    Thread(target=run_flask).start()
+
+    # --- Telegram Bot in Main Thread ---
     app.run_polling()
-
-# ---------------- Keep-alive for Replit ----------------
-from flask import Flask
-from threading import Thread
-
-app = Flask(__name__)
-
-@app.route('/')
-def home():
-    return "✅ Bot is alive!"
-
-def run():
-    app.run(host='0.0.0.0', port=8080)
-
-Thread(target=run).start()
-
-  
-
-
-
-
-
